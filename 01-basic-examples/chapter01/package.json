@@ -1,0 +1,13 @@
+{
+  "name": "chapter01",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "rollup -c ./build/rollup.config.js"
+  },
+  "devDependencies": {
+    "@rollup/plugin-buble": "^0.20.0",
+    "rollup": "^1.27.8"
+  }
+}
