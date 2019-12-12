@@ -1,33 +1,14 @@
-# 生产模式
+# Node.js使用API模式
 
-`生产模式` 就是项目正式上线的模式，前端代码 `生产模式` 主要有以下几点要素：
-
-- 保证代码混淆，编译结果不可读
-
-- 体积压缩
-
-- 信息脱敏
-
-因此，rollup.js 在 `生产模式` 下编译后的代码要有以下几点要求：
-
-- 代码需要 uglify
-
-- 关闭 sourceMap
-
-- `yarn run build` 启动执行 `生产模式`
-
-- `yarn run dev` 启动执行 `开发模式`
-
+本篇主要讲述用 rollup.js 的 API 在 Node.js 代码中执行编译代码
 
 ## 本篇目标
 
-- 创建项目 chapter04
+- 创建项目 chapter05
 
-- 编译 ES6+ 代码
+- 利用 rollup.js 的 API
 
-- 编译成 `UMD` 格式（通用模块定义）
-
-- 满足上述`生产模式`的几点要求
+- 在 Node.js 脚本中执行编译
 
 
 ## 目标实现
@@ -36,8 +17,8 @@
 
 ```shell script
 cd 01-basic-examples
-mkdir chapter04
-cd chapter04
+mkdir chapter05
+cd chapter05
 
 yarn init -y
 
@@ -84,18 +65,18 @@ ni rollup.config.dev.js
 ni rollup.config.prod.js
 ```
 
-编写配置文件， ES6模块引用（import）方式编写
+编写配置文件， Common.js方式引用编写
 
 ```javascript
 /* rollup.config.js */
-import path from 'path';
-import babel from 'rollup-plugin-babel';
+const path = require('path');
+const babel = require('rollup-plugin-babel');
 
 const resolveFile = (filepath) => {
     return path.join(__dirname, '..', filepath)
 };
 
-export default {
+module.exports = {
     input: resolveFile('src/index.js'),
     output: {
         file: resolveFile('dist/index.js'),
@@ -111,66 +92,33 @@ export default {
             ]
         })
     ]
-}
-```
-
-```javascript
-/* rollup.config.dev.js */
-import path from 'path';
-import serve from 'rollup-plugin-serve';
-import config from './rollup.config';
-
-const resolveFile = (filepath) => {
-    return path.join(__dirname, '..', filepath)
 };
-
-const PORT = 8090;
-const HOST = 'localhost';
-
-config.output.sourcemap = true;
-
-config.plugins = [
-    ...config.plugins,
-    ...[
-        serve({
-            // Launch in browser（default: false）
-            open: true,
-
-            openPage: '/example/index.html',
-
-            // Show server address in console (default: true)
-            verbose: true,
-
-            // Options used in setting up server
-            host: HOST,
-            port: PORT,
-
-            // 当指定 openPage 时，contentBase: ''
-            contentBase: ''
-
-            // 当不指定 openPage 时， 设置 example 的访问目录和dist的访问目录
-            // contentBase: [resolveFile('dist'), resolveFile('example')]
-        })
-    ]
-];
-
-export default config;
 ```
 
 ```javascript
-/* rollup.config.prod.js */
-import { uglify } from 'rollup-plugin-uglify';
-import config from './rollup.config';
+/* build.js */
+const rollup = require('rollup');
+const config = require('./rollup.config');
 
-config.output.sourcemap = false;
-config.plugins = [
-    ...config.plugins,
-    ...[
-        uglify()
-    ]
-];
+const inputOptions = config;
+const outputOptions = config.output;
 
-export default config;
+async function build () {
+    // create a bundle
+    const bundle = await rollup.rollup(inputOptions);
+
+    console.log(`[INFO] >>> 开始编译 ${inputOptions.input}`);
+
+    // generate code and a sourcemap
+    const {code, map} = await bundle.generate(outputOptions);
+
+    console.log(`[SUCCESS] >>> 编译结束 ${outputOptions.file}`);
+
+    // or write the bundle to disk
+    await bundle.write(outputOptions);
+}
+
+build();
 ```
 
 在 `package.json` 配置文件中加入执行脚本
@@ -179,8 +127,7 @@ export default config;
 // package.json
 "scripts": {
   "clean": "rimraf dist",
-  "dev": "rollup -w -c ./build/rollup.config.dev.js",
-  "build": "rollup -c ./build/rollup.config.prod.js"
+  "build": "node ./build/build.js"
 }
 ``` 
 
@@ -223,27 +170,19 @@ export default demo;
 
 ### 4. 执行脚本，编译结果
 
-项目根目录下执行 `yarn run dev`
-
 项目根目录下执行 `yarn run build`
 
 编译结果在目录 `./dist/` 下
 
 编译结果分成  
     - ES5代码文件 `./dist/index.js`   
-    - 生产模式下，生成的ES5代码被 `uglify` 混淆压缩，`./dist/index.minl.js`   
-    - 开发模式下，会生成源码的 sourceMap 文件 `./dist/index.js.map`  
     
-插件服务启动了 `8090` 端口：
-
 **注意：** 页面使用的时候要引入 `@babel/polyfill` 构建的JS版本 `dist/pollyfill.js` 或者打包的时候把 `@babel/polyfill` 模块引用进入项目中
 
 > **Usage in Browser**   
 > Avaliable from the `dist/pollyfill.js` file within a `@babel/polyfill` npm release.
 
 > 比如第三方的CDN可以直接引入 html 的 script 脚本中： `https://unpkg.com/@babel/polyfill@7.7.0/dist/polyfill.js`
-
-浏览器访问 `localhost:8090`  
 
 打开浏览器工作台 Web Console 就会显示可运行结果
 ```ini
